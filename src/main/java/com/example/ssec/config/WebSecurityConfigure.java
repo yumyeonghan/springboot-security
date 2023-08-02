@@ -40,6 +40,7 @@ public class WebSecurityConfigure {
                         .clearAuthentication(true))
                 .rememberMe(auth -> auth.rememberMeParameter("remember-me")
                         .tokenValiditySeconds(300))
+                .requiresChannel(auth -> auth.anyRequest().requiresSecure())
                 .build();
     }
 }
