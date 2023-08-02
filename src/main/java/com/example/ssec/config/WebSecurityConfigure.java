@@ -38,6 +38,8 @@ public class WebSecurityConfigure {
                         .logoutSuccessUrl("/")
                         .invalidateHttpSession(true)
                         .clearAuthentication(true))
+                .rememberMe(auth -> auth.rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(300))
                 .build();
     }
 }
