@@ -1,16 +1,24 @@
 package com.example.ssec.config;
 
+import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 public class WebSecurityConfigure {
+
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
     @Bean
     public InMemoryUserDetailsManager userDetailsManager() {
@@ -31,6 +39,8 @@ public class WebSecurityConfigure {
         return http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/me").hasAnyRole("USER", "ADMIN")
+                        .requestMatchers("/admin").hasRole("ADMIN")
+                        .requestMatchers("/admin").fullyAuthenticated()
                         .anyRequest().permitAll())
                 .formLogin(auth -> auth.defaultSuccessUrl("/")
                         .permitAll())
@@ -41,6 +51,24 @@ public class WebSecurityConfigure {
                 .rememberMe(auth -> auth.rememberMeParameter("remember-me")
                         .tokenValiditySeconds(300))
                 .requiresChannel(auth -> auth.anyRequest().requiresSecure())
+                .anonymous(auth -> auth.principal("thisIsAnonymousUser")
+                        .authorities("ROLE_ANONYMOUS", "ROLE_UNKNOWN"))
+                .exceptionHandling(auth -> auth.accessDeniedHandler(accessDeniedHandler()))
                 .build();
+    }
+
+    //Custom AccessDeniedHandler
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) -> {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            Object principal = authentication != null ? authentication.getPrincipal() : null;
+            log.warn("{} is denied", principal);
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("text/plain");
+            response.getWriter().write("## ACCESS DENIED ##");
+            response.getWriter().flush();
+            response.getWriter().close();
+        };
     }
 }
