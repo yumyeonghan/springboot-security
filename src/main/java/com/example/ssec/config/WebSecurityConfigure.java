@@ -43,6 +43,9 @@ public class WebSecurityConfigure {
                         .requestMatchers("/admin").fullyAuthenticated()
                         .anyRequest().permitAll())
                 .formLogin(auth -> auth.defaultSuccessUrl("/")
+                        //.loginPage("/my-login") 직접 로그인 페이지 사용할 경우 설정
+                        .usernameParameter("my-username")
+                        .passwordParameter("my-password")
                         .permitAll())
                 .logout(auth -> auth.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
                         .logoutSuccessUrl("/")
