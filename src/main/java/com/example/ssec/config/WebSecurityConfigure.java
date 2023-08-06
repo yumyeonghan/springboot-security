@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
@@ -42,22 +43,34 @@ public class WebSecurityConfigure {
                         .requestMatchers("/admin").hasRole("ADMIN")
                         .requestMatchers("/admin").fullyAuthenticated()
                         .anyRequest().permitAll())
-                .formLogin(auth -> auth.defaultSuccessUrl("/")
+                .formLogin(auth -> auth
+                        .defaultSuccessUrl("/")
                         //.loginPage("/my-login") 직접 로그인 페이지 사용할 경우 설정
                         .usernameParameter("my-username")
                         .passwordParameter("my-password")
                         .permitAll())
-                .logout(auth -> auth.logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+                .logout(auth -> auth
+                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
                         .logoutSuccessUrl("/")
                         .invalidateHttpSession(true)
                         .clearAuthentication(true))
-                .rememberMe(auth -> auth.key("my-remember-me")
+                .rememberMe(auth -> auth
+                        .key("my-remember-me")
                         .rememberMeParameter("remember-me")
                         .tokenValiditySeconds(300))
-                .requiresChannel(auth -> auth.anyRequest().requiresSecure())
-                .anonymous(auth -> auth.principal("thisIsAnonymousUser")
+                .requiresChannel(auth -> auth
+                        .anyRequest().requiresSecure())
+                .anonymous(auth -> auth
+                        .principal("thisIsAnonymousUser")
                         .authorities("ROLE_ANONYMOUS", "ROLE_UNKNOWN"))
-                .exceptionHandling(auth -> auth.accessDeniedHandler(accessDeniedHandler()))
+                .exceptionHandling(auth -> auth
+                        .accessDeniedHandler(accessDeniedHandler()))
+                .sessionManagement(auth -> auth
+                        .sessionFixation().changeSessionId()
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        .invalidSessionUrl("/")
+                        .maximumSessions(1)
+                        .maxSessionsPreventsLogin(false))
                 .build();
     }
 
