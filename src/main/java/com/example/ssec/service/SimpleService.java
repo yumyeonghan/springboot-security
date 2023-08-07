@@ -14,12 +14,11 @@ public class SimpleService {
     public final Logger log = LoggerFactory.getLogger(getClass());
 
     @Async
-    public String asyncMethod() {
+    public void asyncMethod() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         User principal = authentication != null ? (User) authentication.getPrincipal() : null;
         String name = principal != null ? principal.getUsername() : null;
         log.info("asyncMethod result: {}", name);
-        return name;
     }
 
 }
