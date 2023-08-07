@@ -21,6 +21,12 @@ public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
+    //Spring Mvc Async Request 없이, 별도의 스레드에서 SecurityContextHolder를 통해 SecurityContext를 얻을 수 있게 설정
+    public WebSecurityConfigure() {
+        //MODE_INHERITABLETHREADLOCAL 설정은 기본값인 MODE_THREADLOCAL와 다르게 부모 쓰레드의 변수를 자식 쓰레드도 참조할 수 있게 허용
+        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
+    }
+
     @Bean
     public InMemoryUserDetailsManager userDetailsManager() {
         UserDetails admin = makeUserDetails("admin", "1234", "ADMIN");

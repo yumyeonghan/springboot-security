@@ -5,7 +5,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-@EnableAsync
+@EnableAsync //@Async 사용을 위해 설정
 @Configuration
 public class WebMvcConfigure implements WebMvcConfigurer {
 
