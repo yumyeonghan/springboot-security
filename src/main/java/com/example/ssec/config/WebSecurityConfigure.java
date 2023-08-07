@@ -3,8 +3,11 @@ package com.example.ssec.config;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
@@ -12,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -21,10 +25,25 @@ public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-    //Spring Mvc Async Request 없이, 별도의 스레드에서 SecurityContextHolder를 통해 SecurityContext를 얻을 수 있게 설정
-    public WebSecurityConfigure() {
-        //MODE_INHERITABLETHREADLOCAL 설정은 기본값인 MODE_THREADLOCAL와 다르게 부모 쓰레드의 변수를 자식 쓰레드도 참조할 수 있게 허용
-        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
+//    //Spring Mvc Async Request 없이, 별도의 스레드에서 SecurityContextHolder를 통해 SecurityContext를 얻을 수 있게 설정(권장 x)
+//    public WebSecurityConfigure() {
+//        //MODE_INHERITABLETHREADLOCAL 설정은 기본값인 MODE_THREADLOCAL와 다르게 부모 쓰레드의 변수를 자식 쓰레드도 참조할 수 있게 허용
+//        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
+//    }
+
+    @Bean
+    @Qualifier("myAsyncTaskExecutor")
+    public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(3);
+        executor.setMaxPoolSize(5);
+        executor.setThreadNamePrefix("my-executor-");
+        return executor;
+    }
+
+    @Bean
+    public DelegatingSecurityContextAsyncTaskExecutor taskExecutor(@Qualifier("myAsyncTaskExecutor") AsyncTaskExecutor delegate) {
+        return new DelegatingSecurityContextAsyncTaskExecutor(delegate);
     }
 
     @Bean
