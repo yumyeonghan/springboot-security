@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -30,6 +31,12 @@ public class WebSecurityConfigure {
 //        //MODE_INHERITABLETHREADLOCAL 설정은 기본값인 MODE_THREADLOCAL와 다르게 부모 쓰레드의 변수를 자식 쓰레드도 참조할 수 있게 허용
 //        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
 //    }
+
+    //ignoring()를 설정하지 않으면 CsrfFilter에 의해 /h2-console 페이지가 막힘
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer () {
+        return (web -> web.ignoring().requestMatchers(new AntPathRequestMatcher("/h2-console/**")));
+    }
 
     @Bean
     @Qualifier("myAsyncTaskExecutor")
@@ -64,9 +71,9 @@ public class WebSecurityConfigure {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/me").hasAnyRole("USER", "ADMIN")
-                        .requestMatchers("/admin").hasRole("ADMIN")
-                        .requestMatchers("/admin").fullyAuthenticated()
+                        .requestMatchers(new AntPathRequestMatcher("/me")).hasAnyRole("USER", "ADMIN")
+                        .requestMatchers(new AntPathRequestMatcher("/admin")).hasRole("ADMIN")
+                        .requestMatchers(new AntPathRequestMatcher("/admin")).fullyAuthenticated()
                         .anyRequest().permitAll())
                 .formLogin(auth -> auth
                         .defaultSuccessUrl("/")
