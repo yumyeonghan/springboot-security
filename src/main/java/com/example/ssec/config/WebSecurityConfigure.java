@@ -13,13 +13,14 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import javax.sql.DataSource;
 
 @Configuration
 public class WebSecurityConfigure {
@@ -53,18 +54,26 @@ public class WebSecurityConfigure {
         return new DelegatingSecurityContextAsyncTaskExecutor(delegate);
     }
 
-    @Bean
-    public InMemoryUserDetailsManager userDetailsManager() {
-        UserDetails admin = makeUserDetails("admin", "1234", "ADMIN");
-        UserDetails user = makeUserDetails("user", "1234", "USER");
-        return new InMemoryUserDetailsManager(user, admin);
-    }
+//    //인메모리가 아닌, 데이터베이스를 연동해서 사용자 인증을 처리하려면 다른 구현체(JdbcDaoImpl)를 사용해야함
+//    @Bean
+//    public InMemoryUserDetailsManager userDetailsManager() {
+//        UserDetails admin = makeUserDetails("admin", "1234", "ADMIN");
+//        UserDetails user = makeUserDetails("user", "1234", "USER");
+//        return new InMemoryUserDetailsManager(user, admin);
+//    }
 
-    private UserDetails makeUserDetails(String name, String password, String role) {
-        return User.withUsername(name)
-                .password(String.format("{noop}%s", password))
-                .roles(role)
-                .build();
+//    private UserDetails makeUserDetails(String name, String password, String role) {
+//        return User.withUsername(name)
+//                .password(String.format("{noop}%s", password))
+//                .roles(role)
+//                .build();
+//    }
+
+    @Bean
+    public UserDetailsService userDetailsService(DataSource dataSource) {
+        JdbcDaoImpl jdbcDao = new JdbcDaoImpl();
+        jdbcDao.setDataSource(dataSource);
+        return jdbcDao;
     }
 
     @Bean
