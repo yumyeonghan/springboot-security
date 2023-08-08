@@ -13,10 +13,9 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -29,7 +28,66 @@ public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
 
-//    //Spring Mvc Async Request 없이, 별도의 스레드에서 SecurityContextHolder를 통해 SecurityContext를 얻을 수 있게 설정(권장 x)
+    private final DataSource dataSource;
+
+    public WebSecurityConfigure(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    @Bean
+    public JdbcUserDetailsManager jdbcUserDetailsManager() {
+        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
+        jdbcUserDetailsManager.setUsersByUsernameQuery("SELECT " +
+                "login_id, passwd, true " +
+                "FROM " +
+                "users " +
+                "WHERE " +
+                "login_id = ?");
+        jdbcUserDetailsManager.setGroupAuthoritiesByUsernameQuery( "SELECT " +
+                "u.login_id, g.name, p.name " +
+                "FROM " +
+                "users u JOIN groups g ON u.group_id = g.id " +
+                "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
+                "JOIN permissions p ON p.id = gp.permission_id " +
+                "WHERE " +
+                "u.login_id = ?");
+        jdbcUserDetailsManager.setEnableAuthorities(false);
+        jdbcUserDetailsManager.setEnableGroups(true);
+        return jdbcUserDetailsManager;
+    }
+
+//    //이건 권장하지 않는 방법임
+//    //remember-me 옵션을 주고, 로그인을 하면 IllegalStateException("UserDetailsService is required") 발생
+//    @Bean
+//    public UserDetailsService userDetailsService(DataSource dataSource) {
+//        JdbcDaoImpl jdbcDao = new JdbcDaoImpl();
+//        jdbcDao.setDataSource(dataSource);
+//        jdbcDao.setEnableAuthorities(false);
+//        jdbcDao.setEnableGroups(true);
+//        //사용자 정의 DB를 사용하기 위한 커스텀 쿼리 작성
+//        jdbcDao.setUsersByUsernameQuery(
+//                "SELECT " +
+//                        "login_id, passwd, true " +
+//                        "FROM " +
+//                        "users " +
+//                        "WHERE " +
+//                        "login_id = ?"
+//        );
+//        jdbcDao.setGroupAuthoritiesByUsernameQuery(
+//                "SELECT " +
+//                        "u.login_id, g.name, p.name " +
+//                        "FROM " +
+//                        "users u JOIN groups g ON u.group_id = g.id " +
+//                        "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
+//                        "JOIN permissions p ON p.id = gp.permission_id " +
+//                        "WHERE " +
+//                        "u.login_id = ?"
+//        );
+//        return jdbcDao;
+//    }
+
+
+    //    //Spring Mvc Async Request 없이, 별도의 스레드에서 SecurityContextHolder를 통해 SecurityContext를 얻을 수 있게 설정(권장 x)
 //    public WebSecurityConfigure() {
 //        //MODE_INHERITABLETHREADLOCAL 설정은 기본값인 MODE_THREADLOCAL와 다르게 부모 쓰레드의 변수를 자식 쓰레드도 참조할 수 있게 허용
 //        SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
@@ -70,34 +128,6 @@ public class WebSecurityConfigure {
 //                .roles(role)
 //                .build();
 //    }
-
-    @Bean
-    public UserDetailsService userDetailsService(DataSource dataSource) {
-        JdbcDaoImpl jdbcDao = new JdbcDaoImpl();
-        jdbcDao.setDataSource(dataSource);
-        jdbcDao.setEnableAuthorities(false);
-        jdbcDao.setEnableGroups(true);
-        //사용자 정의 DB를 사용하기 위한 커스텀 쿼리 작성
-        jdbcDao.setUsersByUsernameQuery(
-                "SELECT " +
-                        "login_id, passwd, true " +
-                        "FROM " +
-                        "users " +
-                        "WHERE " +
-                        "login_id = ?"
-        );
-        jdbcDao.setGroupAuthoritiesByUsernameQuery(
-                "SELECT " +
-                        "u.login_id, g.name, p.name " +
-                        "FROM " +
-                        "users u JOIN groups g ON u.group_id = g.id " +
-                        "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
-                        "JOIN permissions p ON p.id = gp.permission_id " +
-                        "WHERE " +
-                        "u.login_id = ?"
-        );
-        return jdbcDao;
-    }
 
     //기존의 DelegatingPasswordEncoder를 사용하려면 DB에
     // '$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 대신, '{bcrypt}$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 데이터를 삽입
