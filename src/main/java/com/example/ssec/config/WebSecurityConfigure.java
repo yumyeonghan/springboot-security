@@ -15,6 +15,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.jdbc.JdbcDaoImpl;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -35,7 +37,7 @@ public class WebSecurityConfigure {
 
     //ignoring()를 설정하지 않으면 CsrfFilter에 의해 /h2-console 페이지가 막힘
     @Bean
-    public WebSecurityCustomizer webSecurityCustomizer () {
+    public WebSecurityCustomizer webSecurityCustomizer() {
         return (web -> web.ignoring().requestMatchers(new AntPathRequestMatcher("/h2-console/**")));
     }
 
@@ -73,7 +75,35 @@ public class WebSecurityConfigure {
     public UserDetailsService userDetailsService(DataSource dataSource) {
         JdbcDaoImpl jdbcDao = new JdbcDaoImpl();
         jdbcDao.setDataSource(dataSource);
+        jdbcDao.setEnableAuthorities(false);
+        jdbcDao.setEnableGroups(true);
+        //사용자 정의 DB를 사용하기 위한 커스텀 쿼리 작성
+        jdbcDao.setUsersByUsernameQuery(
+                "SELECT " +
+                        "login_id, passwd, true " +
+                        "FROM " +
+                        "users " +
+                        "WHERE " +
+                        "login_id = ?"
+        );
+        jdbcDao.setGroupAuthoritiesByUsernameQuery(
+                "SELECT " +
+                        "u.login_id, g.name, p.name " +
+                        "FROM " +
+                        "users u JOIN groups g ON u.group_id = g.id " +
+                        "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
+                        "JOIN permissions p ON p.id = gp.permission_id " +
+                        "WHERE " +
+                        "u.login_id = ?"
+        );
         return jdbcDao;
+    }
+
+    //기존의 DelegatingPasswordEncoder를 사용하려면 DB에
+    // '$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 대신, '{bcrypt}$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 데이터를 삽입
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
