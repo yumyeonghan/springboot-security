@@ -1,5 +1,6 @@
 package com.example.ssec.config;
 
+import com.example.ssec.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -15,46 +18,59 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
-import javax.sql.DataSource;
-
 @Configuration
 public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
+    private final UserService userService;
+    //private final DataSource dataSource;
 
-    private final DataSource dataSource;
+    public WebSecurityConfigure(UserService userService) {
+        this.userService = userService;
+    }
 
-    public WebSecurityConfigure(DataSource dataSource) {
-        this.dataSource = dataSource;
+    //DelegatingPasswordEncoder를 사용하려면,
+    //DB에 '$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 대신, '{bcrypt}$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 데이터를 삽입
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public JdbcUserDetailsManager jdbcUserDetailsManager() {
-        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
-        jdbcUserDetailsManager.setUsersByUsernameQuery("SELECT " +
-                "login_id, passwd, true " +
-                "FROM " +
-                "users " +
-                "WHERE " +
-                "login_id = ?");
-        jdbcUserDetailsManager.setGroupAuthoritiesByUsernameQuery( "SELECT " +
-                "u.login_id, g.name, p.name " +
-                "FROM " +
-                "users u JOIN groups g ON u.group_id = g.id " +
-                "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
-                "JOIN permissions p ON p.id = gp.permission_id " +
-                "WHERE " +
-                "u.login_id = ?");
-        jdbcUserDetailsManager.setEnableAuthorities(false);
-        jdbcUserDetailsManager.setEnableGroups(true);
-        return jdbcUserDetailsManager;
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+        daoAuthenticationProvider.setUserDetailsService(userService);
+        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+        return daoAuthenticationProvider;
     }
+
+//    //UserService 사용하기 위해 삭제
+//    @Bean
+//    public JdbcUserDetailsManager jdbcUserDetailsManager() {
+//        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
+//        jdbcUserDetailsManager.setUsersByUsernameQuery("SELECT " +
+//                "login_id, passwd, true " +
+//                "FROM " +
+//                "users " +
+//                "WHERE " +
+//                "login_id = ?");
+//        jdbcUserDetailsManager.setGroupAuthoritiesByUsernameQuery( "SELECT " +
+//                "u.login_id, g.name, p.name " +
+//                "FROM " +
+//                "users u JOIN groups g ON u.group_id = g.id " +
+//                "LEFT JOIN group_permission gp ON g.id = gp.group_id " +
+//                "JOIN permissions p ON p.id = gp.permission_id " +
+//                "WHERE " +
+//                "u.login_id = ?");
+//        jdbcUserDetailsManager.setEnableAuthorities(false);
+//        jdbcUserDetailsManager.setEnableGroups(true);
+//        return jdbcUserDetailsManager;
+//    }
 
 //    //이건 권장하지 않는 방법임
 //    //remember-me 옵션을 주고, 로그인을 하면 IllegalStateException("UserDetailsService is required") 발생
@@ -128,13 +144,6 @@ public class WebSecurityConfigure {
 //                .roles(role)
 //                .build();
 //    }
-
-    //기존의 DelegatingPasswordEncoder를 사용하려면 DB에
-    // '$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 대신, '{bcrypt}$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 데이터를 삽입
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
