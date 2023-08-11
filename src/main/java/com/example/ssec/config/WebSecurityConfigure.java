@@ -1,5 +1,6 @@
 package com.example.ssec.config;
 
+import com.example.ssec.jwt.Jwt;
 import com.example.ssec.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -28,10 +29,21 @@ public class WebSecurityConfigure {
 
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final UserService userService;
+    private final JwtConfigure jwtConfigure;
     //private final DataSource dataSource;
 
-    public WebSecurityConfigure(UserService userService) {
+    public WebSecurityConfigure(UserService userService, JwtConfigure jwtConfigure) {
         this.userService = userService;
+        this.jwtConfigure = jwtConfigure;
+    }
+
+    @Bean
+    public Jwt jwt() {
+        return new Jwt(
+                jwtConfigure.getIssuer(),
+                jwtConfigure.getClientSecret(),
+                jwtConfigure.getExpirySeconds()
+        );
     }
 
     //DelegatingPasswordEncoder를 사용하려면,
@@ -149,38 +161,45 @@ public class WebSecurityConfigure {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(new AntPathRequestMatcher("/me")).hasAnyRole("USER", "ADMIN")
-                        .requestMatchers(new AntPathRequestMatcher("/admin")).hasRole("ADMIN")
-                        .requestMatchers(new AntPathRequestMatcher("/admin")).fullyAuthenticated()
+//                        .requestMatchers(new AntPathRequestMatcher("/me")).hasAnyRole("USER", "ADMIN")
+//                        .requestMatchers(new AntPathRequestMatcher("/admin")).hasRole("ADMIN")
+//                        .requestMatchers(new AntPathRequestMatcher("/admin")).fullyAuthenticated()
+                        .requestMatchers(new AntPathRequestMatcher("/api/user/me")).hasAnyRole("USER", "ADMIN")
                         .anyRequest().permitAll())
-                .formLogin(auth -> auth
-                        .defaultSuccessUrl("/")
-                        //.loginPage("/my-login") 직접 로그인 페이지 사용할 경우 설정
-                        .usernameParameter("my-username")
-                        .passwordParameter("my-password")
-                        .permitAll())
-                .logout(auth -> auth
-                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
-                        .logoutSuccessUrl("/")
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true))
-                .rememberMe(auth -> auth
-                        .key("my-remember-me")
-                        .rememberMeParameter("remember-me")
-                        .tokenValiditySeconds(300))
-                .requiresChannel(auth -> auth
-                        .anyRequest().requiresSecure())
-                .anonymous(auth -> auth
-                        .principal("thisIsAnonymousUser")
-                        .authorities("ROLE_ANONYMOUS", "ROLE_UNKNOWN"))
+                .csrf(auth -> auth
+                        .disable())
+                .headers(auth -> auth
+                        .disable())
+                .sessionManagement(auth -> auth
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+//                .formLogin(auth -> auth
+//                        .defaultSuccessUrl("/")
+//                        //.loginPage("/my-login") 직접 로그인 페이지 사용할 경우 설정
+//                        .usernameParameter("my-username")
+//                        .passwordParameter("my-password")
+//                        .permitAll())
+//                .logout(auth -> auth
+//                        .logoutRequestMatcher(new AntPathRequestMatcher("/logout"))
+//                        .logoutSuccessUrl("/")
+//                        .invalidateHttpSession(true)
+//                        .clearAuthentication(true))
+//                .rememberMe(auth -> auth
+//                        .key("my-remember-me")
+//                        .rememberMeParameter("remember-me")
+//                        .tokenValiditySeconds(300))
+//                .requiresChannel(auth -> auth
+//                        .anyRequest().requiresSecure())
+//                .anonymous(auth -> auth
+//                        .principal("thisIsAnonymousUser")
+//                        .authorities("ROLE_ANONYMOUS", "ROLE_UNKNOWN"))
                 .exceptionHandling(auth -> auth
                         .accessDeniedHandler(accessDeniedHandler()))
-                .sessionManagement(auth -> auth
-                        .sessionFixation().changeSessionId()
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .invalidSessionUrl("/")
-                        .maximumSessions(1)
-                        .maxSessionsPreventsLogin(false))
+//                .sessionManagement(auth -> auth
+//                        .sessionFixation().changeSessionId()
+//                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+//                        .invalidSessionUrl("/")
+//                        .maximumSessions(1)
+//                        .maxSessionsPreventsLogin(false))
                 .build();
     }
 
