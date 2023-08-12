@@ -1,6 +1,7 @@
 package com.example.ssec.config;
 
 import com.example.ssec.jwt.Jwt;
+import com.example.ssec.jwt.JwtAuthenticationFilter;
 import com.example.ssec.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -22,6 +23,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -157,8 +159,15 @@ public class WebSecurityConfigure {
 //                .build();
 //    }
 
+    public JwtAuthenticationFilter jwtAuthenticationFilter(Jwt jwt) {
+        return new JwtAuthenticationFilter(
+                this.jwtConfigure.getHeader(),
+                jwt
+        );
+    }
+
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, Jwt jwt) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
 //                        .requestMatchers(new AntPathRequestMatcher("/me")).hasAnyRole("USER", "ADMIN")
@@ -200,6 +209,7 @@ public class WebSecurityConfigure {
 //                        .invalidSessionUrl("/")
 //                        .maximumSessions(1)
 //                        .maxSessionsPreventsLogin(false))
+                .addFilterAfter(jwtAuthenticationFilter(jwt), SecurityContextHolderFilter.class)
                 .build();
     }
 
