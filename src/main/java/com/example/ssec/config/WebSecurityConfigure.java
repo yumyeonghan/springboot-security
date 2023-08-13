@@ -2,6 +2,7 @@ package com.example.ssec.config;
 
 import com.example.ssec.jwt.Jwt;
 import com.example.ssec.jwt.JwtAuthenticationFilter;
+import com.example.ssec.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.example.ssec.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -167,6 +168,11 @@ public class WebSecurityConfigure {
     }
 
     @Bean
+    public OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler() {
+        return new OAuth2AuthenticationSuccessHandler();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, Jwt jwt) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
@@ -209,6 +215,8 @@ public class WebSecurityConfigure {
 //                        .invalidSessionUrl("/")
 //                        .maximumSessions(1)
 //                        .maxSessionsPreventsLogin(false))
+                .oauth2Login(auth -> auth
+                        .successHandler(oauth2AuthenticationSuccessHandler()))
                 .addFilterAfter(jwtAuthenticationFilter(jwt), SecurityContextHolderFilter.class)
                 .build();
     }
