@@ -12,15 +12,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -51,18 +47,18 @@ public class WebSecurityConfigure {
 
     //DelegatingPasswordEncoder를 사용하려면,
     //DB에 '$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 대신, '{bcrypt}$2a$10$B32L76wyCEGqG/UVKPYk9uqZHCWb7k4ci98VTQ7l.dCEib/kzpKGe' 데이터를 삽입
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+//    @Bean
+//    public PasswordEncoder passwordEncoder() {
+//        return new BCryptPasswordEncoder();
+//    }
 
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
-        daoAuthenticationProvider.setUserDetailsService(userService);
-        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
-        return daoAuthenticationProvider;
-    }
+//    @Bean
+//    public AuthenticationProvider authenticationProvider() {
+//        DaoAuthenticationProvider daoAuthenticationProvider = new DaoAuthenticationProvider();
+//        daoAuthenticationProvider.setUserDetailsService(userService);
+//        daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
+//        return daoAuthenticationProvider;
+//    }
 
 //    //UserService 사용하기 위해 삭제
 //    @Bean
@@ -168,8 +164,8 @@ public class WebSecurityConfigure {
     }
 
     @Bean
-    public OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler() {
-        return new OAuth2AuthenticationSuccessHandler();
+    public OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler(Jwt jwt) {
+        return new OAuth2AuthenticationSuccessHandler(jwt, userService);
     }
 
     @Bean
@@ -216,7 +212,7 @@ public class WebSecurityConfigure {
 //                        .maximumSessions(1)
 //                        .maxSessionsPreventsLogin(false))
                 .oauth2Login(auth -> auth
-                        .successHandler(oauth2AuthenticationSuccessHandler()))
+                        .successHandler(oauth2AuthenticationSuccessHandler(jwt)))
                 .addFilterAfter(jwtAuthenticationFilter(jwt), SecurityContextHolderFilter.class)
                 .build();
     }

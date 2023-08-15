@@ -8,7 +8,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -38,14 +37,9 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
         this.jwt = jwt;
     }
 
-    /**
-     * HTTP 요청 헤더에 JWT 토큰이 있는지 확인
-     * JWT 토큰이 있다면, 주어진 토큰을 디코딩 하고,
-     * username, roles 데이터를 추출하고, UsernamePasswordAuthenticationToken 생성
-     * 이렇게 만들어진 UsernamePasswordAuthenticationToken 참조를 SecurityContext에 넣어줌
-     */
     @Override
-    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
+    public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
+            throws IOException, ServletException {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) res;
 
@@ -60,7 +54,8 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
                     List<GrantedAuthority> authorities = getAuthorities(claims);
 
                     if (isNotEmpty(username) && authorities.size() > 0) {
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                        JwtAuthenticationToken authentication =
+                                new JwtAuthenticationToken(new JwtAuthentication(token, username), null, authorities);
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
@@ -69,8 +64,10 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
                 }
             }
         } else {
-            log.debug("SecurityContextHolder not populated with security token, as it already contained: '{}'", SecurityContextHolder.getContext().getAuthentication());
+            log.debug("SecurityContextHolder not populated with security token, as it already contained: '{}'",
+                    SecurityContextHolder.getContext().getAuthentication());
         }
+
         chain.doFilter(request, response);
     }
 
@@ -93,6 +90,9 @@ public class JwtAuthenticationFilter extends GenericFilterBean {
 
     private List<GrantedAuthority> getAuthorities(Jwt.Claims claims) {
         String[] roles = claims.roles;
-        return roles == null || roles.length == 0 ? emptyList() : Arrays.stream(roles).map(SimpleGrantedAuthority::new).collect(toList());
+        return roles == null || roles.length == 0 ?
+                emptyList() :
+                Arrays.stream(roles).map(SimpleGrantedAuthority::new).collect(toList());
     }
+
 }
