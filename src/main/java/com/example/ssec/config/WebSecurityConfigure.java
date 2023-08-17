@@ -2,6 +2,7 @@ package com.example.ssec.config;
 
 import com.example.ssec.jwt.Jwt;
 import com.example.ssec.jwt.JwtAuthenticationFilter;
+import com.example.ssec.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
 import com.example.ssec.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.example.ssec.user.UserService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -11,12 +12,20 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.JdbcOAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -169,7 +178,25 @@ public class WebSecurityConfigure {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, Jwt jwt) throws Exception {
+    public AuthorizationRequestRepository<OAuth2AuthorizationRequest> authorizationRequestRepository() {
+        return new HttpCookieOAuth2AuthorizationRequestRepository();
+    }
+
+    //InMemoryOAuth2AuthorizedClientService 사용x
+    //서버 메모리에 정보를 저장하기 때문에 OAuth 정보가 많으면 장애가 남
+    //또한 OAuth 정보를 갖고 있는 서버가 장애가 나면 메모리가 전부 사라짐
+    @Bean
+    public OAuth2AuthorizedClientService authorizedClientService(JdbcOperations jdbcOperations, ClientRegistrationRepository clientRegistrationRepository) {
+        return new JdbcOAuth2AuthorizedClientService(jdbcOperations, clientRegistrationRepository);
+    }
+
+    @Bean
+    public OAuth2AuthorizedClientRepository oAuth2AuthorizedClientRepository(OAuth2AuthorizedClientService authorizedClientService) {
+        return new AuthenticatedPrincipalOAuth2AuthorizedClientRepository(authorizedClientService);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, Jwt jwt, OAuth2AuthorizedClientService authorizedClientService) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
 //                        .requestMatchers(new AntPathRequestMatcher("/me")).hasAnyRole("USER", "ADMIN")
@@ -212,7 +239,9 @@ public class WebSecurityConfigure {
 //                        .maximumSessions(1)
 //                        .maxSessionsPreventsLogin(false))
                 .oauth2Login(auth -> auth
-                        .successHandler(oauth2AuthenticationSuccessHandler(jwt)))
+                        .successHandler(oauth2AuthenticationSuccessHandler(jwt))
+                        .authorizationEndpoint(authorizationEndpointConfig -> authorizationEndpointConfig.authorizationRequestRepository(authorizationRequestRepository()))
+                        .authorizedClientRepository(oAuth2AuthorizedClientRepository(authorizedClientService)))
                 .addFilterAfter(jwtAuthenticationFilter(jwt), SecurityContextHolderFilter.class)
                 .build();
     }
